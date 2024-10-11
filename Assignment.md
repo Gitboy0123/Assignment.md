@@ -1,95 +1,279 @@
-# Lab 1: STM32CubeIDE and Multi-Function Shield Introduction
+# ECEN-361 Lab-04:FreeRTOS & Multi-tasking
+
+     Student Name:  Fill-in HERE
 
 ## Introduction and Objective of the Lab
 
-With the change away from the TI-MSP432 board (obsoleted) there are likely some in this class who are unfamiliar with the development environment comes with the new board to be used: STMicro’s STM32-Nucleo-F476RG. Both boards are centered on an ARM-Cortex processor and most of the fundamental principles learned in the pre-requisite ECEN-260 are unchanged.
+In Lab-02, we saw how individual counter blocks could initiate tasks and work like a multi-tasking system. Each timer block would produce an interrupt, launch the task, then re-start its count. In “parallel” we had
 
-Similarly, the integrated development environment (IDE) will necessarily change from T.I.’s Code Composer Studio, to STMicro’s customized one: STM32CubeIDE. Both of these IDEs, however, are based on the open-source Eclipse framework and the transition should be very simple.
+- 3 different LEDs blinking
+- A timer cycling thru, displaying each of the Seven-Segment display digits.
+- Random Reaction Timer counting
+- A response-timer keeping track of how long till a button was pressed.
+- A serial port timer sending UART data to the USB-COM: port.
 
-The objectives of this first lab are as follows:
+While this operated like a multi-tasking system, the reality is that there were very strict limitations and flexibility to this system. Our Nucleo was running out of timer blocks, there was no controlled/shared memory, interrupts had to planned such they were never “nested,” etc. This brute force approach is not scalable.
 
-- Part 1: Install, run, and do a first example project with STMCubeIDE
-- Part 2: Become familiar with some of the Hardware Abstraction Level (HAL) routines provided
+In Lab-03 we examined a simple approach to looking at how to launch multiple jobs per a scheduler.
 
-For each of the parts, follow the instructions, then fill in answers to the questions. Expected answers are indicated in the boxes with red text/spaces to fill in answers.
+Our next step is to implement a true, commercial-grade RTOS, which gives us all the infrastructure needed to implement multi-tasking. Instead of using multiple counters/timers/interrupts, we will now let the RTOS manage task swapping, memory management, and all else, based on a single timer: SYSTICK.
 
-The submission for this lab is simply this document, with your responses filled in. NO CODE needs to be submitted.
+FreeRTOS will be the RTOS of choice for this class. The benefits and reasons for this system are reviewed in class, and it is supported directly with the STM32CubeIDE that we use. This lab will be the first use of FreeRTOS in our labs and has the following objectives:
 
-## Instructions
+* **Part 1:** Introduction of FreeRTOS with a process-based ‘blinky’ project.
 
-### Part 1: First Program with STM32CubeIDE
+* **Part 2:** Creation of tasks to do the same things we did in Lab-02, but with processes controlled by FreeRTOS instead of setting-up and controlling all the timers.
 
-STM32 CubeIDE needs to be installed on your personal computer. Rather than go thru the instructions in this document, the first part of this lab is for you to replicate the steps shown in this YouTube video: [Getting Started with STM32 and Nucleo Part 1: Introduction to STM32CubeIDE and Blinky – Digi-Key - YouTube](https://www.youtube.com/watch?v=hyZS2p1tW-g&t=161s&ab_channel=DigiKey)
+For each of the parts, follow the instructions, then fill in answers to the questions. Expected answers are indicated with "[*answer here*]".
 
-![](media/687977049885398c93bbee0d6c79ebf5.png)
+## Lab Instructions
 
-Note that it may be easier for you to replicate the steps in this video by following the written instructions [HERE](https://www.digikey.com/en/maker/projects/getting-started-with-stm32-introduction-to-stm32cubeide/6a6c60a670c447abb90fd0fd78008697).
+### Part 1.1: Starting with the YT-based, add the MultiBoard into the project
 
-When you complete the installation, and do the first “blinky” program, you should have a board that blinks the LED on/off. Experiment with the various toolbar buttons:
+Before the lab, you should’ve followed the instructions for the Pre-lab-4 Exam, and built a ‘blinky’ that runs from FreeRTOS.
 
-When completed answer the following questions. Add your answers by editing this file directly and committing it to your repository.  When completed with the lab, submit the URL to your repository as your assignment submission on Canvas.
+With that project working, power-down the Nucleo, add on the multi-function shield, and start your FreeRTOS blinky again.
 
-### Part 1: Questions (5pts)
+### Part 1.2: Questions (2pts)
 
-1. Platform used (PC/Mac/Linux)? PC
+* Which light blinks on the multiboard (i.e., Dx)?
+  
+  * [The D2 LED blinks on the multi-function shield]
 
-2. Version of STM32CubeIDE installed? Version 1.8.0
+* Are the multiboard LED and main Nucleo LED in sync with one another (i.e., do they turn on and off at the same time with same logic)? Why or why not?
+  
+  * [No, the LEDs on the Nucleo board and the multi-function shield are not in sync. This is because the Nucleo board's onboard LED and the multi-function shield's LEDs are controlled independently. The Nucleo LED is controlled as active-high, while the shield’s LEDs might be controlled differently (active-low). This leads to unsynchronized behavior.*]
 
-3. What GPIO Pin is tied to the LED on the board? PA5
+Finally, locate the process in the code where the on-board light is toggled. Look for:
 
-4. At what frequency did your light blink?  HAL_Delay(500)
+**HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);**
 
-5. What does the “bug” button do? It allows you to set breakpoints, step through code, view variable values, and monitor the flow of the program in real-time.
+**osDelay(2000);**
 
-![](media/c20a679cbe3a6587283cfc92269d3bfb.png)
+With the MultiFunction Board in place, change that line to toggle the LED D4 instead:
 
-### Part 2: Loading/Running a pre-built project
+**HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);**
 
-For this part of the lab, you won’t need to write any code, but you’ll use the STM32CubeIDE to load a project already built for you, and then use that code to test out the MultiFunction add-on board. We’ll use this board for many other labs.
+### Part 2.1: Using the Multi-Board and Launching other FreeRTOS tasks
 
-![Multifunctional expansion board shield for arduino UNO R3 NEW - Picture 1 of 1](media/acd4a5098e306c57c182fa75f6dba741.jpeg)
+Now, import this lab's project into your workspace with File/Import and point to the directory of the this lab project.
 
-The MultiFunction add-on board uses an Arduino shield compatible form factor to add switches, 7-segment LED digits, a buzzer, potentiometer, and more LEDs. Documentation on the board is found in the Documentation folder for each lab.
+Clean and build the project and observer that there are no errors or warnings.
 
-Steps:
+Run the project and observe that the D2_LED blinks at 1 Hz (once per second).
 
-1. Make sure your Nucleo Board is not powered on
+*Note that the D1_LED is not being used because it is tied to the built-in user LED on the STM32 board. These two are in conflict with one board treating it as active-high, and the other as active-low. So, D1_LED is unused.*
 
-2. Plug in the MultiFunction board into the mating CN8 & CN9 connectors on top of the Nucleo.
+There is no seven-segment display.
 
-3. Install the MultiFunction Example application by doing the following:
+#### Task: Create 3 more blinking events with tasks (no interrupts or timer blocks this time) (3 pts)
+
+Note that to add a new task in FreeRTOS, three things have to be coded. These are labelled with comments in “main.c” as “Task-Part-A,” “Task-Part-B,” and “Task-Part-C”. As they are discussed below – find these comments in the code for reference.
+
+1. `/******* Task-Creation-Part-A *********/`
    
-   1. Open STM32CubeIDE
-   2. Note the directory into which you cloned the repository. Bring it into your STM32CubeIDE workspace with: File/Import/\<*your directory name*\>
-   3. Plug in the board to the USB, clean/build/run the project (e.g., the bug button mentioned earlier!)
+   * Declare a prototype for the function (this is a requirement for the C-compiler to link)
+  
+   * // Task creation part-A
+void Task_BlinkD2(void *argument);   // Task to blink D2_LED
+void Task_BlinkD3(void *argument);   // Task to blink D3_LED
+void Task_BlinkD4(void *argument);   // Task to blink D4_LED
+void Task_SevenSegmentCounter(void *argument);  // Task for Seven Segment display
 
-4. Experiment with the buttons, note the operation. Look at the code in :  
-   Core/Src/main.c to help with the questions that follow.
 
-5. Open the project’s configuration file GUI (ECEN-361-STM32-Lab-01-multiboard.ioc). You should see a graphical representation of the chip along with name definitions, and other parts inside the chip that have been programmed: Timers, Interrupts, etc.  
-   ![](media/ffb74c795735689b31afb1701eec567a.png)  
-   Look through these definitions and compare them to the code that gets generated automatically in: 
+2. `/******* Task-Creation-Part-B *********/`
    
-   * main.c, (main execution loop)
+   * Write the task process itself
+  
+   * // Task creation part-B
+// Task for blinking D2_LED every 500 ms
+void Task_BlinkD2(void *argument) {
+    for(;;) {
+        HAL_GPIO_TogglePin(LED_D2_GPIO_Port, LED_D2_Pin);  // Toggle D2
+        osDelay(500);  // Delay for 500 ms
+    }
+}
+
+// Task for blinking D3_LED every 250 ms
+void Task_BlinkD3(void *argument) {
+    for(;;) {
+        HAL_GPIO_TogglePin(LED_D3_GPIO_Port, LED_D3_Pin);  // Toggle D3
+        osDelay(250);  // Delay for 250 ms
+    }
+}
+
+// Task for blinking D4_LED every 125 ms
+void Task_BlinkD4(void *argument) {
+    for(;;) {
+        HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);  // Toggle D4
+        osDelay(125);  // Delay for 125 ms
+    }
+}
+
+// Task to update the seven-segment display every 1500 ms
+void Task_SevenSegmentCounter(void *argument) {
+    uint8_t counter = 0;  // Initialize counter variable
+    for(;;) {
+        MultiFunctionShield_Display(counter);  // Update the seven-segment display
+        counter = (counter + 1) % 10;  // Increment and wrap around after 9
+        osDelay(1500);  // Delay for 1500 ms
+    }
+}
+
+
+3. `/******* Task-Creation-Part-C *********/`
    
-   * stm32l4xx_it.c (interrupt handlers and config)
-   
-   * stm32l4xx_hal_msp.c (hardware abstraction layer)
+   * Launch the task by putting it in the scheduling queue
+  
+   * // Task creation part-C
+void StartDefaultTask(void *argument) {
+    // Start the default task that blinks D1_LED every 1000 ms
+    HAL_GPIO_TogglePin(LED_D1_GPIO_Port, LED_D1_Pin);
+    osDelay(1000);
+}
 
-### Part 2: Questions (5pts)
+int main(void) {
+    // System and hardware initialization code (generated by STM32CubeMX or written manually)
+    ...
 
-1. What does switch 1 (S1) do? Toggle an LED or initiate another action when pressed.
+    // Create the FreeRTOS tasks
+    osThreadNew(Task_BlinkD2, NULL, NULL);   // Launch Task_BlinkD2
+    osThreadNew(Task_BlinkD3, NULL, NULL);   // Launch Task_BlinkD3
+    osThreadNew(Task_BlinkD4, NULL, NULL);   // Launch Task_BlinkD4
+    osThreadNew(Task_SevenSegmentCounter, NULL, NULL);  // Launch Seven-Segment display task
 
-2. What does switch 2 (S2) do? Assigned to control another peripheral or perform a specific function in the program.
+    // Start the default task
+    osThreadNew(StartDefaultTask, NULL, NULL);  // Start the default task to blink D1
 
-3. What does switch 3 (S3) do? Trigger a separate function or control a different LED.
+    // Start FreeRTOS scheduler
+    osKernelStart();
+}
 
-4. What variable would you change to make the first number shown on the 7-segment digits be ‘1234’? Look for something like a digit array or a display update function. Changing the corresponding array to {1, 2, 3, 4} should display "1234".
 
-5. What pin on the chip is tied to the potentiometer? PB6.
+Note that the “StartDefaultTask “ is required when the system is built. That task currently blinks the D1_LED at 1000mS. Using the single task in the code as a prototype (“StartDefaultTask”), create three more tasks that blink:
 
-## Extra-Credit Opportunities (2pts for any of the following)
+* D2_LED: Once every 500 mS
+* D3_LED: Once every 250 mS
+* D4_LED: Once every 125 mS
 
-* In addition to the changing digits, there is a serial output terminal stream that is reporting status abut every second or so.  Connect a terminal emulator to this stream (Windows: 'PuTTY' or 'Tera Term', Mac: 'screen') and paste a line from its output. 
+## Part 2.2: Seven Segment Display Counter (5pts)
 
-* What does the potentiometer do in the program? To control a variable, such as brightness, volume, or other analog-controlled functions. The value read from the potentiometer via the ADC can be used to modify the behavior of the program.
+Now add one final task that display a counter on the Seven-Segment LED display. Count up from 0, and increment the count once per 1500 mS.
+
+#include "main.h"
+#include "cmsis_os.h"
+
+// Task prototypes (Task-Creation-Part-A)
+void Task_BlinkD2(void *argument);
+void Task_BlinkD3(void *argument);
+void Task_BlinkD4(void *argument);
+void Task_SevenSegmentCounter(void *argument);
+
+// Main function
+int main(void) {
+    // Initialize hardware and peripherals
+    HAL_Init();
+    SystemClock_Config();
+
+    // Initialize the LED GPIOs and Seven Segment Display GPIOs
+    MX_GPIO_Init();
+
+    // Initialize the RTOS Kernel
+    osKernelInitialize();
+
+    // Task creation (Task-Creation-Part-C)
+    osThreadNew(Task_BlinkD2, NULL, NULL); // Task for D2 LED blink (500 ms)
+    osThreadNew(Task_BlinkD3, NULL, NULL); // Task for D3 LED blink (250 ms)
+    osThreadNew(Task_BlinkD4, NULL, NULL); // Task for D4 LED blink (125 ms)
+    osThreadNew(Task_SevenSegmentCounter, NULL, NULL); // Task for Seven Segment Display Counter
+
+    // Start the scheduler
+    osKernelStart();
+
+    // Infinite loop (the system is controlled by FreeRTOS tasks)
+    while(1) {
+    }
+}
+
+// Task-Creation-Part-B
+
+// Task for blinking D2_LED every 500 ms
+void Task_BlinkD2(void *argument) {
+    for(;;) {
+        HAL_GPIO_TogglePin(D2_LED_GPIO_Port, D2_LED_Pin);  // Toggle D2 LED
+        osDelay(500);  // Delay 500 ms
+    }
+}
+
+// Task for blinking D3_LED every 250 ms
+void Task_BlinkD3(void *argument) {
+    for(;;) {
+        HAL_GPIO_TogglePin(D3_LED_GPIO_Port, D3_LED_Pin);  // Toggle D3 LED
+        osDelay(250);  // Delay 250 ms
+    }
+}
+
+// Task for blinking D4_LED every 125 ms
+void Task_BlinkD4(void *argument) {
+    for(;;) {
+        HAL_GPIO_TogglePin(D4_LED_GPIO_Port, D4_LED_Pin);  // Toggle D4 LED
+        osDelay(125);  // Delay 125 ms
+    }
+}
+
+// Task for seven-segment display counter (increments every 1500 ms)
+void Task_SevenSegmentCounter(void *argument) {
+    uint8_t counter = 0;  // Initialize counter variable
+
+    for(;;) {
+        // Update the seven-segment display with current counter value
+        MultiFunctionShield_Display(counter);
+
+        // Increment the counter and wrap around at 9
+        counter = (counter + 1) % 10;
+
+        // Delay for 1500 ms
+        osDelay(1500);
+    }
+}
+
+
+## Extra Credit Ideas (5 pts maximum)
+
+* Stop one of the LED processes when the digit count gets to 20. Explain how you did it. Did you use a global variable? Or read about and use the oSSuspend task API?
+  
+  * [*o stop one of the LED processes when the digit count reaches 20, I used a global variable to keep track of the count. Inside the task responsible for the Seven-Segment display counter, I checked if the count reached 20. When this condition was met, I used the vTaskSuspend function from FreeRTOS to suspend the LED task. Here’s an example:
+  * void Task_SevenSegmentCounter(void *argument) {
+    uint8_t counter = 0;
+
+    for(;;) {
+        MultiFunctionShield_Display(counter);
+        counter++;
+
+        if (counter >= 20) {
+            vTaskSuspend(xTaskHandle_LED); // Suspend the LED task
+        }
+
+        osDelay(1500);
+    }
+}
+*]
+
+* Explore the differences between the two “delay” calls: HAL_Delay and OsDelay
+  
+  * [*HAL_Delay is a blocking function provided by the HAL (Hardware Abstraction Layer) that halts the execution of the current thread for a specified time. It blocks other tasks from running during the delay period, which can lead to inefficiencies in a multitasking environment like FreeRTOS.
+On the other hand, osDelay is a non-blocking function specific to FreeRTOS that allows the current task to yield its CPU time, effectively putting it into the Blocked state for the specified duration. During this time, other tasks can run, making osDelay more suitable for multitasking applications.*]
+
+* Eliminate the SevenSegment refresh routine, currently based off timer17, so that it refreshs like any other process to give the appearance of all 4 digits being turned on at the same time. Explain what you did.
+  
+  * [*To eliminate the timer-based refresh routine for the Seven-Segment display, I integrated the refresh process into the FreeRTOS task scheduler. Instead of relying on a timer, I created a dedicated task for the Seven-Segment display that runs at regular intervals. The task uses a loop to update the display and is scheduled alongside other tasks. This change allows for simultaneous updates to the display, creating the appearance of all four digits being illuminated at the same time, rather than refreshing sequentially based on a timer.*]
+
+* Use one of the push buttons from an earlier lab to set up an interrupt such that it doubles the count frequency of the 7-Segment LED counter to go faster and faster.   Explain how you did it.
+  
+  * [*I configured one of the push buttons as an external interrupt. When the button is pressed, it triggers an interrupt service routine (ISR) that modifies a global variable that indicates the count frequency. For example, if the initial frequency is set to 1500 ms, the ISR would halve this value (e.g., change to 750 ms) each time the button is pressed. The main counting task checks this frequency variable and uses osDelay to control the timing of the display updates accordingly. Here’s a simple example of how the ISR might look:
+  * void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+    if (GPIO_Pin == BUTTON_PIN) {
+        frequency = frequency / 2; // Double the count frequency
+    }
+}
+*]
