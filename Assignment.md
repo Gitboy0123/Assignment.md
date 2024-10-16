@@ -1,6 +1,6 @@
 # ECEN-361 Lab-05:SPI & Logic Analyzer
 
-     Student Name:  Fill-in HERE
+     Student Name:  Leaton Jenkins
 
 ## Introduction and Objectives of the Lab
 
@@ -80,11 +80,11 @@ Experiment with this, send different codes, learn to use the tool, then answer t
 
 ## Part 1: Questions
 
-* What is the default bitrate?  (time per bit, NOT per byte!)  -- Use the measurement tool (looks like a ruler): <mark>[*answer here*]</mark>
+* What is the default bitrate?  (time per bit, NOT per byte!)  -- Use the measurement tool (looks like a ruler): <mark>[*1.6 µs per bit*]</mark>
 
-* How much time between each byte? <mark>[*answer here*]</mark>
+* How much time between each byte? <mark>[*12.8 µs + 2 µs = 14.8 µs between bytes*]</mark>
 
-* Which has more overhead:  USART or SPI? And why? <mark>[*answer here*]</mark>
+* Which has more overhead:  USART or SPI? And why? <mark>[*40 MHz (25 ns per bit)*]</mark>
 
 The transfer rate is a function of a clock divider on the main clock (80Mhz). Default in your code is 128. Find the line that defines this: hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128; rate in **main.c.** Change this line to make the SPI transfer as fast as possible, compile, run, and capture the results and note what you see.
 
