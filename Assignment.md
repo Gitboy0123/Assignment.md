@@ -84,31 +84,34 @@ Experiment with this, send different codes, learn to use the tool, then answer t
 
 * How much time between each byte? <mark>[*12.8 µs + 2 µs = 14.8 µs between bytes*]</mark>
 
-* Which has more overhead:  USART or SPI? And why? <mark>[*40 MHz (25 ns per bit)*]</mark>
+* Which has more overhead:  USART or SPI? And why? <mark>[*USART has more overhead than SPI because it requires start/stop bits for each byte, unlike SPI, which uses a continuous clock signal for data transfer.*]</mark>
 
 The transfer rate is a function of a clock divider on the main clock (80Mhz). Default in your code is 128. Find the line that defines this: hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128; rate in **main.c.** Change this line to make the SPI transfer as fast as possible, compile, run, and capture the results and note what you see.
 
-* What is fastest bit rate possible with this processor?  Equation? <mark>[*answer here*]</mark>
+* What is fastest bit rate possible with this processor?  Equation? <mark>[*40 Mbps is the fastest bit rate, using the equation 
+80 MHz/2=40 Mbps.*]</mark>
 
-* Is there any problem capturing the fastest data of a USART channel with the logic analyzer? <mark>[*answer here*]</mark>
+* Is there any problem capturing the fastest data of a USART channel with the logic analyzer? <mark>[*There could be a problem capturing the fastest USART data if the logic analyzer's sampling rate is insufficient for the baud rate being used.*]</mark>
 
 ## Part 2: Doing the same with I2C
 
 Attach the I2C Signals to look at the data coming out, then answer:
 
-* What is the default bitrate? <mark>[*answer here*]</mark>
+* What is the default bitrate? <mark>[*100 kbps*]</mark>
 
-* How much time between each byte? <mark>[*answer here*]</mark>
+* How much time between each byte? <mark>[*Approximately 100-120 µs between bytes.*]</mark>
 
-* What is the value of the data coming out first?  It’s not like the others. <mark>[*answer here*]</mark>
+* What is the value of the data coming out first?  It’s not like the others. <mark>[*The first data byte is likely the slave address.*]</mark>
 
 ## Part 3: Doing the same with a UART
 
 Attach the USART3_TX and RX and sample again, looking at the data coming out, then answer:
 
-* What is the default bitrate? Can this be estimated from the baud rate? What is the equation? <mark>[*answer here*]</mark>
+* What is the default bitrate? Can this be estimated from the baud rate? What is the equation? <mark>[*Time per bit= 1/Baud Rate= 1/9600
+ ≈104.17μs
+Answer: 9600 bps*]</mark>
 
-* What is the max bitrate (or baud rate if you prefer) that is easily supported? When we say supported, this means that two devices can easily be set up to communicate. See [here](https://support.sbg-systems.com/sc/kb/latest/technology-insights/uart-baud-rate-and-output-rate) for more information. <mark>[*answer here*]</mark>
+* What is the max bitrate (or baud rate if you prefer) that is easily supported? When we say supported, this means that two devices can easily be set up to communicate. See [here](https://support.sbg-systems.com/sc/kb/latest/technology-insights/uart-baud-rate-and-output-rate) for more information. <mark>[*115200 bps is the max baud rate commonly supported for UART communication.*]</mark>
 
 ## Extra Credit Fun Ideas (5 pts max)
 
