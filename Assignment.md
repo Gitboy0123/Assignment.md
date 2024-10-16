@@ -1,279 +1,135 @@
-# ECEN-361 Lab-04:FreeRTOS & Multi-tasking
+# ECEN-361 Lab-05:SPI & Logic Analyzer
 
      Student Name:  Fill-in HERE
 
-## Introduction and Objective of the Lab
+## Introduction and Objectives of the Lab
 
-In Lab-02, we saw how individual counter blocks could initiate tasks and work like a multi-tasking system. Each timer block would produce an interrupt, launch the task, then re-start its count. In “parallel” we had
+This lab will require very little code development. The project as cloned from the GitHub-Classroom, runs without modification. You’ll be asked to use a logic analyzer to capture traces of the formats and compare their utility.
 
-- 3 different LEDs blinking
-- A timer cycling thru, displaying each of the Seven-Segment display digits.
-- Random Reaction Timer counting
-- A response-timer keeping track of how long till a button was pressed.
-- A serial port timer sending UART data to the USB-COM: port.
+- Part 1: Physical observation of different digital serial communication protocols: I2C, SPI, and UART
+- Part 2: Become familiar with a logic analyzer, capture & decoding capabilities.
 
-While this operated like a multi-tasking system, the reality is that there were very strict limitations and flexibility to this system. Our Nucleo was running out of timer blocks, there was no controlled/shared memory, interrupts had to planned such they were never “nested,” etc. This brute force approach is not scalable.
+For each of the parts, follow the instructions, then fill in answers to the questions. Expected answers are indicated with <mark>[*answer here*]</mark>.
 
-In Lab-03 we examined a simple approach to looking at how to launch multiple jobs per a scheduler.
+## Part 1: Accept the Assignment, Download the repo, Run it
 
-Our next step is to implement a true, commercial-grade RTOS, which gives us all the infrastructure needed to implement multi-tasking. Instead of using multiple counters/timers/interrupts, we will now let the RTOS manage task swapping, memory management, and all else, based on a single timer: SYSTICK.
+Same initial procedure as previous labs – get the laboratory into your STM32CubeIDE workspace, then clean/build/run it.
 
-FreeRTOS will be the RTOS of choice for this class. The benefits and reasons for this system are reviewed in class, and it is supported directly with the STM32CubeIDE that we use. This lab will be the first use of FreeRTOS in our labs and has the following objectives:
+#### Step 1: Install a terminal emulator program
 
-* **Part 1:** Introduction of FreeRTOS with a process-based ‘blinky’ project.
+In order to interact with the program, you’ll need to bring up a serial terminal emulator, like PuTTY or Tera Term (windows) or screen (MAC).
 
-* **Part 2:** Creation of tasks to do the same things we did in Lab-02, but with processes controlled by FreeRTOS instead of setting-up and controlling all the timers.
+Terminal emulator specs are (always the same for this class):
 
-For each of the parts, follow the instructions, then fill in answers to the questions. Expected answers are indicated with "[*answer here*]".
+![A screenshot of a computer Description automatically generated](media/882ca964308ef4205da643920ba17e74.png)
 
-## Lab Instructions
+Your COM: port will be found with DeviceManager or on a MAC as (/dev/tty…). If you install a terminal emulator like Tera Term, it will enumerate your COM ports for you. :)
 
-### Part 1.1: Starting with the YT-based, add the MultiBoard into the project
+With a terminal emulator running you’ll see the opening banner and a prompt to enter a line of text:
 
-Before the lab, you should’ve followed the instructions for the Pre-lab-4 Exam, and built a ‘blinky’ that runs from FreeRTOS.
+![A screenshot of a computer Description automatically generated](media/ed4011ac6d395eff2f0655ee1e7c0f97.png)
 
-With that project working, power-down the Nucleo, add on the multi-function shield, and start your FreeRTOS blinky again.
+#### Step 2: Install the Saelae Logic Analyzer Software: [Logic 2](https://www.saleae.com/downloads/)
 
-### Part 1.2: Questions (2pts)
+#### Step 3: Connect and label the probes for the SPI, UART and I2C:
 
-* Which light blinks on the multiboard (i.e., Dx)?
-  
-  * [The D2 LED blinks on the multi-function shield]
+To probe the SPI and I2C pins, you’ll use the following:
 
-* Are the multiboard LED and main Nucleo LED in sync with one another (i.e., do they turn on and off at the same time with same logic)? Why or why not?
-  
-  * [No, the LEDs on the Nucleo board and the multi-function shield are not in sync. This is because the Nucleo board's onboard LED and the multi-function shield's LEDs are controlled independently. The Nucleo LED is controlled as active-high, while the shield’s LEDs might be controlled differently (active-low). This leads to unsynchronized behavior.*]
+![](media/d5fa4df94685e0bb8c8541c91e4aabde.png)
 
-Finally, locate the process in the code where the on-board light is toggled. Look for:
+Note that these pins are found from the STMCubeIDE configuration file. Opening will show (SPI1 for example):
 
-**HAL_GPIO_TogglePin(GPIOA,GPIO_PIN_5);**
+![A screenshot of a computer Description automatically generated](media/5c9b944fc4426cec69226305fbca80bd.png)
 
-**osDelay(2000);**
+Go to the GPIO Settings tab to see what pin names are assigned to each signal. You’ll manually change and configure I/O pins later and in other labs, so be sure you know how to find what signal is assigned to what I/O pin!
 
-With the MultiFunction Board in place, change that line to toggle the LED D4 instead:
+Plug in the logic analyzer and run the “Logic 2” program.
 
-**HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);**
+Connect probes from the Saelae Logic, using:
 
-### Part 2.1: Using the Multi-Board and Launching other FreeRTOS tasks
+- GND (Black pins are on bottom)
+- SPI1_SCK
+- SPI1_MOSI
+- SP1_NSS
 
-Now, import this lab's project into your workspace with File/Import and point to the directory of the this lab project.
+![A circuit board with wires Description automatically generated](media/c881588d604d57405b3388adf3e42807.png)
 
-Clean and build the project and observer that there are no errors or warnings.
+Label them in the software. Make sure the inputs are Digital:
 
-Run the project and observe that the D2_LED blinks at 1 Hz (once per second).
+![A screenshot of a computer Description automatically generated](media/8497fae159b07b17ca4e4284654b25f0.png)
 
-*Note that the D1_LED is not being used because it is tied to the built-in user LED on the STM32 board. These two are in conflict with one board treating it as active-high, and the other as active-low. So, D1_LED is unused.*
+Program the Analyzer to decode SPI:
 
-There is no seven-segment display.
+![A screenshot of a computer program Description automatically generated](media/f611c99d272dfe2e1a4e41603a4f9bb0.png)
 
-#### Task: Create 3 more blinking events with tasks (no interrupts or timer blocks this time) (3 pts)
+Set the mode to trigger on the falling edge of SPI1_NSS:
 
-Note that to add a new task in FreeRTOS, three things have to be coded. These are labelled with comments in “main.c” as “Task-Part-A,” “Task-Part-B,” and “Task-Part-C”. As they are discussed below – find these comments in the code for reference.
+![](media/3581b472df544c25626a2c5516a6995a.png)
 
-1. `/******* Task-Creation-Part-A *********/`
-   
-   * Declare a prototype for the function (this is a requirement for the C-compiler to link)
-  
-   * // Task creation part-A
-void Task_BlinkD2(void *argument);   // Task to blink D2_LED
-void Task_BlinkD3(void *argument);   // Task to blink D3_LED
-void Task_BlinkD4(void *argument);   // Task to blink D4_LED
-void Task_SevenSegmentCounter(void *argument);  // Task for Seven Segment display
+Run a capture on the Logic2 (big green play button).
 
+Enter some TXT into the TTY emulator:
 
-2. `/******* Task-Creation-Part-B *********/`
-   
-   * Write the task process itself
-  
-   * // Task creation part-B
-// Task for blinking D2_LED every 500 ms
-void Task_BlinkD2(void *argument) {
-    for(;;) {
-        HAL_GPIO_TogglePin(LED_D2_GPIO_Port, LED_D2_Pin);  // Toggle D2
-        osDelay(500);  // Delay for 500 ms
-    }
-}
+![A screenshot of a computer Description automatically generated](media/e909f102dd64c11c5619232531556422.png)
 
-// Task for blinking D3_LED every 250 ms
-void Task_BlinkD3(void *argument) {
-    for(;;) {
-        HAL_GPIO_TogglePin(LED_D3_GPIO_Port, LED_D3_Pin);  // Toggle D3
-        osDelay(250);  // Delay for 250 ms
-    }
-}
+Look at the results. Change the output formatting to be ASCII
 
-// Task for blinking D4_LED every 125 ms
-void Task_BlinkD4(void *argument) {
-    for(;;) {
-        HAL_GPIO_TogglePin(LED_D4_GPIO_Port, LED_D4_Pin);  // Toggle D4
-        osDelay(125);  // Delay for 125 ms
-    }
-}
-
-// Task to update the seven-segment display every 1500 ms
-void Task_SevenSegmentCounter(void *argument) {
-    uint8_t counter = 0;  // Initialize counter variable
-    for(;;) {
-        MultiFunctionShield_Display(counter);  // Update the seven-segment display
-        counter = (counter + 1) % 10;  // Increment and wrap around after 9
-        osDelay(1500);  // Delay for 1500 ms
-    }
-}
-
-
-3. `/******* Task-Creation-Part-C *********/`
-   
-   * Launch the task by putting it in the scheduling queue
-  
-   * // Task creation part-C
-void StartDefaultTask(void *argument) {
-    // Start the default task that blinks D1_LED every 1000 ms
-    HAL_GPIO_TogglePin(LED_D1_GPIO_Port, LED_D1_Pin);
-    osDelay(1000);
-}
-
-int main(void) {
-    // System and hardware initialization code (generated by STM32CubeMX or written manually)
-    ...
-
-    // Create the FreeRTOS tasks
-    osThreadNew(Task_BlinkD2, NULL, NULL);   // Launch Task_BlinkD2
-    osThreadNew(Task_BlinkD3, NULL, NULL);   // Launch Task_BlinkD3
-    osThreadNew(Task_BlinkD4, NULL, NULL);   // Launch Task_BlinkD4
-    osThreadNew(Task_SevenSegmentCounter, NULL, NULL);  // Launch Seven-Segment display task
-
-    // Start the default task
-    osThreadNew(StartDefaultTask, NULL, NULL);  // Start the default task to blink D1
-
-    // Start FreeRTOS scheduler
-    osKernelStart();
-}
-
-
-Note that the “StartDefaultTask “ is required when the system is built. That task currently blinks the D1_LED at 1000mS. Using the single task in the code as a prototype (“StartDefaultTask”), create three more tasks that blink:
-
-* D2_LED: Once every 500 mS
-* D3_LED: Once every 250 mS
-* D4_LED: Once every 125 mS
-
-## Part 2.2: Seven Segment Display Counter (5pts)
-
-Now add one final task that display a counter on the Seven-Segment LED display. Count up from 0, and increment the count once per 1500 mS.
-
-#include "main.h"
-#include "cmsis_os.h"
-
-// Task prototypes (Task-Creation-Part-A)
-void Task_BlinkD2(void *argument);
-void Task_BlinkD3(void *argument);
-void Task_BlinkD4(void *argument);
-void Task_SevenSegmentCounter(void *argument);
-
-// Main function
-int main(void) {
-    // Initialize hardware and peripherals
-    HAL_Init();
-    SystemClock_Config();
-
-    // Initialize the LED GPIOs and Seven Segment Display GPIOs
-    MX_GPIO_Init();
-
-    // Initialize the RTOS Kernel
-    osKernelInitialize();
-
-    // Task creation (Task-Creation-Part-C)
-    osThreadNew(Task_BlinkD2, NULL, NULL); // Task for D2 LED blink (500 ms)
-    osThreadNew(Task_BlinkD3, NULL, NULL); // Task for D3 LED blink (250 ms)
-    osThreadNew(Task_BlinkD4, NULL, NULL); // Task for D4 LED blink (125 ms)
-    osThreadNew(Task_SevenSegmentCounter, NULL, NULL); // Task for Seven Segment Display Counter
-
-    // Start the scheduler
-    osKernelStart();
-
-    // Infinite loop (the system is controlled by FreeRTOS tasks)
-    while(1) {
-    }
-}
-
-// Task-Creation-Part-B
-
-// Task for blinking D2_LED every 500 ms
-void Task_BlinkD2(void *argument) {
-    for(;;) {
-        HAL_GPIO_TogglePin(D2_LED_GPIO_Port, D2_LED_Pin);  // Toggle D2 LED
-        osDelay(500);  // Delay 500 ms
-    }
-}
-
-// Task for blinking D3_LED every 250 ms
-void Task_BlinkD3(void *argument) {
-    for(;;) {
-        HAL_GPIO_TogglePin(D3_LED_GPIO_Port, D3_LED_Pin);  // Toggle D3 LED
-        osDelay(250);  // Delay 250 ms
-    }
-}
-
-// Task for blinking D4_LED every 125 ms
-void Task_BlinkD4(void *argument) {
-    for(;;) {
-        HAL_GPIO_TogglePin(D4_LED_GPIO_Port, D4_LED_Pin);  // Toggle D4 LED
-        osDelay(125);  // Delay 125 ms
-    }
-}
-
-// Task for seven-segment display counter (increments every 1500 ms)
-void Task_SevenSegmentCounter(void *argument) {
-    uint8_t counter = 0;  // Initialize counter variable
-
-    for(;;) {
-        // Update the seven-segment display with current counter value
-        MultiFunctionShield_Display(counter);
-
-        // Increment the counter and wrap around at 9
-        counter = (counter + 1) % 10;
-
-        // Delay for 1500 ms
-        osDelay(1500);
-    }
-}
-
-
-## Extra Credit Ideas (5 pts maximum)
-
-* Stop one of the LED processes when the digit count gets to 20. Explain how you did it. Did you use a global variable? Or read about and use the oSSuspend task API?
-  
-  * [*o stop one of the LED processes when the digit count reaches 20, I used a global variable to keep track of the count. Inside the task responsible for the Seven-Segment display counter, I checked if the count reached 20. When this condition was met, I used the vTaskSuspend function from FreeRTOS to suspend the LED task. Here’s an example:
-  * void Task_SevenSegmentCounter(void *argument) {
-    uint8_t counter = 0;
-
-    for(;;) {
-        MultiFunctionShield_Display(counter);
-        counter++;
-
-        if (counter >= 20) {
-            vTaskSuspend(xTaskHandle_LED); // Suspend the LED task
-        }
-
-        osDelay(1500);
-    }
-}
-*]
-
-* Explore the differences between the two “delay” calls: HAL_Delay and OsDelay
-  
-  * [*HAL_Delay is a blocking function provided by the HAL (Hardware Abstraction Layer) that halts the execution of the current thread for a specified time. It blocks other tasks from running during the delay period, which can lead to inefficiencies in a multitasking environment like FreeRTOS.
-On the other hand, osDelay is a non-blocking function specific to FreeRTOS that allows the current task to yield its CPU time, effectively putting it into the Blocked state for the specified duration. During this time, other tasks can run, making osDelay more suitable for multitasking applications.*]
-
-* Eliminate the SevenSegment refresh routine, currently based off timer17, so that it refreshs like any other process to give the appearance of all 4 digits being turned on at the same time. Explain what you did.
-  
-  * [*To eliminate the timer-based refresh routine for the Seven-Segment display, I integrated the refresh process into the FreeRTOS task scheduler. Instead of relying on a timer, I created a dedicated task for the Seven-Segment display that runs at regular intervals. The task uses a loop to update the display and is scheduled alongside other tasks. This change allows for simultaneous updates to the display, creating the appearance of all four digits being illuminated at the same time, rather than refreshing sequentially based on a timer.*]
-
-* Use one of the push buttons from an earlier lab to set up an interrupt such that it doubles the count frequency of the 7-Segment LED counter to go faster and faster.   Explain how you did it.
-  
-  * [*I configured one of the push buttons as an external interrupt. When the button is pressed, it triggers an interrupt service routine (ISR) that modifies a global variable that indicates the count frequency. For example, if the initial frequency is set to 1500 ms, the ISR would halve this value (e.g., change to 750 ms) each time the button is pressed. The main counting task checks this frequency variable and uses osDelay to control the timing of the display updates accordingly. Here’s a simple example of how the ISR might look:
-  * void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == BUTTON_PIN) {
-        frequency = frequency / 2; // Double the count frequency
-    }
-}
-*]
+![A screenshot of a computer Description automatically generated](media/fd7f6eb58b4646583564621bed24fdd3.png)
+
+Experiment with this, send different codes, learn to use the tool, then answer the following questions:
+
+## Part 1: Questions
+
+* What is the default bitrate?  (time per bit, NOT per byte!)  -- Use the measurement tool (looks like a ruler): <mark>[*answer here*]</mark>
+
+* How much time between each byte? <mark>[*answer here*]</mark>
+
+* Which has more overhead:  USART or SPI? And why? <mark>[*answer here*]</mark>
+
+The transfer rate is a function of a clock divider on the main clock (80Mhz). Default in your code is 128. Find the line that defines this: hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128; rate in **main.c.** Change this line to make the SPI transfer as fast as possible, compile, run, and capture the results and note what you see.
+
+* What is fastest bit rate possible with this processor?  Equation? <mark>[*answer here*]</mark>
+
+* Is there any problem capturing the fastest data of a USART channel with the logic analyzer? <mark>[*answer here*]</mark>
+
+## Part 2: Doing the same with I2C
+
+Attach the I2C Signals to look at the data coming out, then answer:
+
+* What is the default bitrate? <mark>[*answer here*]</mark>
+
+* How much time between each byte? <mark>[*answer here*]</mark>
+
+* What is the value of the data coming out first?  It’s not like the others. <mark>[*answer here*]</mark>
+
+## Part 3: Doing the same with a UART
+
+Attach the USART3_TX and RX and sample again, looking at the data coming out, then answer:
+
+* What is the default bitrate? Can this be estimated from the baud rate? What is the equation? <mark>[*answer here*]</mark>
+
+* What is the max bitrate (or baud rate if you prefer) that is easily supported? When we say supported, this means that two devices can easily be set up to communicate. See [here](https://support.sbg-systems.com/sc/kb/latest/technology-insights/uart-baud-rate-and-output-rate) for more information. <mark>[*answer here*]</mark>
+
+## Extra Credit Fun Ideas (5 pts max)
+
+Document what you did as appropriate here with a small paragraph and show a video clip of the results.
+
+* Add on the MultiFunction Board, and have it display the number of characters sent each time.
+
+* Enable SPI2, as shown in the table above (thru the .IOC configuration file), and read code that gets sent from SPI1->SPI2
+
+* Currently SPI is running in “blocking” (polled) mode.  Change it to run via an interrupt so the processor could be more efficient.
+
+* Enable a ‘smart’ trigger on the Logic Analyzer so it doesn’t actually begin capturing data until specific data is decoded/found.
+
+## Reference
+
+The following is a capture of all three protocols.
+
+Notes that you’ll need:
+
+- The LogicAnalyzer can apply different protocols to different signals. In this case all three are shown
+- I2C in master mode first transmits the address (here it’s 0x11), then waits for the ACK to send the data. Without a SLAVE no data is actually sent
+- The UART is much slower and has overhead of start/stop bits
+
+![A screen shot of a computer Description automatically generated](media/a23903139a8f27019f1dbef9024cb7b8.png)
